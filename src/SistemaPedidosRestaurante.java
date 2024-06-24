@@ -1,11 +1,28 @@
+package src;
+
+import com.itextpdf.kernel.colors.ColorConstants;
+import com.itextpdf.kernel.font.PdfFont;
+import com.itextpdf.kernel.font.PdfFontFactory;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.properties.TextAlignment;
+import com.itextpdf.layout.properties.UnitValue;
+import com.itextpdf.layout.borders.Border;
+import com.itextpdf.layout.borders.SolidBorder;
+import com.itextpdf.layout.element.Cell;
 import conexao.Conexao;
 import dao.PedidoDao;
 import entidades.Pedido;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -181,6 +198,24 @@ public class SistemaPedidosRestaurante extends JFrame {
             }
         });
         menuVerPedidos.add(itemVerPedidos);
+
+        // Adiciona item de menu para gerar relatório PDF
+        JMenuItem itemGerarRelatorio = new JMenuItem("Gerar Relatório PDF");
+        itemGerarRelatorio.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    escolherLocalSalvarRelatorio();
+                } catch (FileNotFoundException ex) {
+                    JOptionPane.showMessageDialog(SistemaPedidosRestaurante.this,
+                            "Erro ao gerar o relatório PDF.",
+                            "Erro",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+        menuVerPedidos.add(itemGerarRelatorio);
+
         menuBar.add(menuVerPedidos);
         setJMenuBar(menuBar);
     }
@@ -226,6 +261,71 @@ public class SistemaPedidosRestaurante extends JFrame {
                 ((JTextField) component).setText("");
             }
         }
+    }
+
+    private void escolherLocalSalvarRelatorio() throws FileNotFoundException {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Salvar Relatório PDF");
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection == JFileChooser.APPROVE_OPTION) {
+            File fileToSave = fileChooser.getSelectedFile();
+            gerarRelatorioPDF(fileToSave.getAbsolutePath());
+        }
+    }
+
+    private void gerarRelatorioPDF(String dest) throws FileNotFoundException {
+        PdfWriter writer = new PdfWriter(dest);
+        PdfDocument pdfDoc = new PdfDocument(writer);
+        Document document = new Document(pdfDoc);
+
+        try {
+            // Adicionando fonte personalizada
+            PdfFont font = PdfFontFactory.createFont("Helvetica-Bold");
+
+            // Adicionando cabeçalho
+            Paragraph header = new Paragraph("Relatório de Pedidos")
+                    .setFont(font)
+                    .setFontSize(20)
+                    .setTextAlignment(TextAlignment.CENTER)
+                    .setMarginBottom(20);
+            document.add(header);
+
+            // Adicionando linha de separação
+            document.add(new Paragraph(" ").setBorder(new SolidBorder(ColorConstants.BLACK, 1)));
+
+            // Adicionando tabela
+            float[] columnWidths = {1, 5}; // Largura das colunas
+            Table table = new Table(UnitValue.createPercentArray(columnWidths));
+            table.setWidth(UnitValue.createPercentValue(100));
+
+            // Adicionando cabeçalho da tabela
+            table.addHeaderCell(new Cell().add(new Paragraph("ID").setFont(font).setFontSize(12)).setBackgroundColor(ColorConstants.LIGHT_GRAY));
+            table.addHeaderCell(new Cell().add(new Paragraph("Descrição do Pedido").setFont(font).setFontSize(12)).setBackgroundColor(ColorConstants.LIGHT_GRAY));
+
+            // Adicionando dados dos pedidos
+            int id = 1;
+            for (String pedido : pedidos) {
+                table.addCell(new Cell().add(new Paragraph(String.valueOf(id++))));
+                table.addCell(new Cell().add(new Paragraph(pedido)));
+            }
+
+            document.add(table);
+
+            // Adicionando rodapé
+            Paragraph footer = new Paragraph("Relatório gerado automaticamente.")
+                    .setFontSize(10)
+                    .setTextAlignment(TextAlignment.CENTER)
+                    .setMarginTop(20);
+            document.add(footer);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            document.close();
+        }
+
+        JOptionPane.showMessageDialog(this, "Relatório PDF gerado com sucesso!");
     }
 
 }
